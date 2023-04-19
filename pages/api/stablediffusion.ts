@@ -1,37 +1,30 @@
-import Replicate from 'replicate';
+import fetch from 'node-fetch'
 
-const handler = async (req, res) => {
-  if (req.method !== 'POST') {
-    res.status(405).json({ message: 'Method not allowed' });
-    return;
-  }
+const apiHost = process.env.API_HOST ?? 'https://api.stability.ai'
+const url = `${apiHost}/v1/engines/list`
 
-  const { value } = req.body;
+const apiKey = process.env.STABILITY_API_KEY
+if (!apiKey) throw new Error('Missing Stability API key.')
 
-  try {
-    const replicate = new Replicate({
-      auth: process.env.REPLICATE_API_TOKEN,
-    });
+const response = await fetch(url, {
+  method: 'GET',
+  headers: {
+    Authorization: `Bearer ${apiKey}`,
+  },
+})
 
-    const output = await replicate.run(
-      "stability-ai/stable-diffusion:db21e45d3f7023abc2a46ee38a23973f6dce16bb082a930b0c49861f96d1e5bf",
-      {
-        input: {
-          prompt: value,
-          image_dimensions: "512x512",
-          num_inference_steps: 12,
-          num_outputs: 1,
-          guideance_scale: 3.5,
-          scheduler: "K_EULER",
-        },
-      },
-    );
+if (!response.ok) {
+  throw new Error(`Non-200 response: ${await response.text()}`)
+}
 
-    res.status(200).json(output);
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-};
+interface Payload {
+  engines: Array<{
+    id: string
+    name: string
+    description: string
+    type: string
+  }>
+}
 
-export default handler;
+// Do something with the payload...
+const payload = (await response.json()) as Payload
